@@ -1,0 +1,6 @@
+{
+  "name": "PROJECT-001",
+  "description": "Sequential landing, login, and main menu interface for PROJECT-001 exam paper and student management system.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

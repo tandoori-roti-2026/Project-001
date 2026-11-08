@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .font-script {
+    font-family: 'Great Vibes', cursive, serif;
+  }
+  .font-rounded {
+    font-family: 'Fredoka', cursive, system-ui, -apple-system, sans-serif;
+  }
+}
+
+.bg-project-gradient {
+  background: linear-gradient(135deg, #4dd9e8 0%, #0047ab 100%);
+}
+
+.bg-banner-gradient {
+  background: linear-gradient(90deg, #4dd9e8 0%, #0047ab 100%);
+}
+
+/* Custom smooth scrollbar if needed */
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  font-family: 'Fredoka', system-ui, sans-serif;
+  background-color: #000000;
+  overscroll-behavior-y: none;
+}
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+  html, body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  /* Ensure parent containers don't clip or scroll in print */
+  #root, div {
+    overflow: visible !important;
+  }
+  header, footer, nav, button, .print\:hidden, [class*="print:hidden"] {
+    display: none !important;
+  }
+  #printable-result-card, [id^="printable-result-card"], [id^="export-card-target"] {
+    border: 1px solid black !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 16px 24px !important;
+  }
+}
+
