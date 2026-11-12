@@ -44,10 +44,6 @@ import {
   isDeveloper,
   isNormal,
 } from './data/authUsers';
-import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { auth } from './firebase';
-import { getAuthorizedUserByEmail } from './utils/userManagement';
-import { DataMigrationModal } from './components/DataMigrationModal';
 
 export type ScreenType =
   | 'landing'
@@ -78,7 +74,6 @@ export default function App() {
   const [currentScreen, setCurrentScreen] = useState<ScreenType>('landing');
   const [transitionDirection, setTransitionDirection] = useState<'forward' | 'backward'>('forward');
   const [isExaminerChatOpen, setIsExaminerChatOpen] = useState(false);
-  const [isDataMigrationOpen, setIsDataMigrationOpen] = useState(false);
 
   // Authenticated User State
   const [currentUser, setCurrentUser] = useState<UserAccount>(() => {
@@ -88,40 +83,6 @@ export default function App() {
     } catch (_) {}
     return USER_ACCOUNTS[0];
   });
-
-  // Listen to Firebase Auth state changes and sync role from Firestore
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
-      if (fbUser && fbUser.email) {
-        try {
-          const authUser = await getAuthorizedUserByEmail(fbUser.email);
-          if (authUser) {
-            setCurrentUser(authUser);
-            try {
-              localStorage.setItem('project001_current_user', JSON.stringify(authUser));
-            } catch (_) {}
-            // Refresh live Firestore data on sign-in
-            paperStorage.loadAllPapers().then((dbPapers) => {
-              if (dbPapers && dbPapers.length > 0) setPapers(dbPapers);
-            });
-            paperStorage.loadAllStudents().then((dbStudents) => {
-              if (dbStudents && dbStudents.length > 0) setStudents(dbStudents);
-            });
-            paperStorage.loadAllMarkingSchemes().then((dbSchemes) => {
-              if (dbSchemes && dbSchemes.length > 0) setMarkingSchemes(dbSchemes);
-            });
-          } else {
-            await signOut(auth);
-            localStorage.removeItem('project001_current_user');
-          }
-        } catch (err) {
-          console.warn('[onAuthStateChanged] Error verifying authorized user:', err);
-        }
-      }
-    });
-
-    return () => unsubscribe();
-  }, []);
 
   // Unified shared master database (Persisted in IndexedDB + LocalStorage)
   const [students, setStudents] = useState<StudentRecord[]>(() => paperStorage.loadInitialStudentsSync());
@@ -506,16 +467,6 @@ export default function App() {
     goToScreen('menu', 'forward');
   };
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-    } catch (_) {}
-    try {
-      localStorage.removeItem('project001_current_user');
-    } catch (_) {}
-    goToScreen('login', 'backward');
-  };
-
   const goToScreen = (
     screen: ScreenType,
     direction: 'forward' | 'backward' = 'forward'
@@ -681,7 +632,7 @@ export default function App() {
                 papers={papers}
                 shiftFilter={shiftFilter}
                 onShiftFilterChange={setShiftFilter}
-                onLogout={handleLogout}
+                onLogout={() => goToScreen('login', 'backward')}
                 onOpenUploading={() => goToScreen('uploading', 'forward')}
                 onOpenEditing={() => {
                   setActiveEditingPaperId(null);
@@ -693,7 +644,6 @@ export default function App() {
                 }}
                 onOpenStudentsData={() => goToScreen('students-data', 'forward')}
                 onOpenAgent={() => setIsExaminerChatOpen(true)}
-                onOpenDataMigration={() => setIsDataMigrationOpen(true)}
               />
             </motion.div>
           )}
@@ -911,27 +861,6 @@ export default function App() {
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Developer-Only Cloud Data Migration & Backup Modal */}
-        <DataMigrationModal
-          isOpen={isDataMigrationOpen}
-          onClose={() => setIsDataMigrationOpen(false)}
-          currentPapers={papers}
-          currentStudents={students}
-          currentSchemes={markingSchemes}
-          onMigrationComplete={(counts) => {
-            // Re-sync authoritative records from Firestore
-            paperStorage.loadAllPapers().then((p) => {
-              if (p && p.length > 0) setPapers(p);
-            });
-            paperStorage.loadAllStudents().then((s) => {
-              if (s && s.length > 0) setStudents(s);
-            });
-            paperStorage.loadAllMarkingSchemes().then((sch) => {
-              if (sch && sch.length > 0) setMarkingSchemes(sch);
-            });
-          }}
-        />
       </div>
     </AuthContext.Provider>
   );

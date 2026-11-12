@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { LogOut, User, CheckCircle2, Database } from 'lucide-react';
+import { LogOut, User, CheckCircle2 } from 'lucide-react';
 import { ModuleItem, ModuleModal } from './ModuleModal';
 import { UserAccount } from '../data/authUsers';
 import { UserIdentityBadge } from './UserIdentityBadge';
@@ -18,7 +18,6 @@ interface MainMenuScreenProps {
   onOpenResultCards: () => void;
   onOpenStudentsData: () => void;
   onOpenAgent: () => void;
-  onOpenDataMigration?: () => void;
 }
 
 const MODULES_DATA: ModuleItem[] = [
@@ -75,7 +74,6 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({
   onOpenResultCards,
   onOpenStudentsData,
   onOpenAgent,
-  onOpenDataMigration,
 }) => {
   const [selectedModule, setSelectedModule] = useState<ModuleItem | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -237,22 +235,6 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({
                 </div>
               )}
             </div>
-
-            {/* Developer Only: Cloud Data Migration & Backup Button */}
-            {currentUser?.role === 'developer' && onOpenDataMigration && (
-              <>
-                <div className="hidden sm:block w-px h-4 bg-blue-200" />
-                <button
-                  type="button"
-                  onClick={onOpenDataMigration}
-                  className="flex items-center gap-1.5 text-xs font-rounded font-bold text-[#0047AB] bg-white hover:bg-blue-100/80 border border-blue-200 px-3.5 py-1.5 rounded-full transition-all cursor-pointer shadow-xs active:scale-95"
-                  title="Open Cloud Data Migration & Backup"
-                >
-                  <Database className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Cloud Migration & Backup</span>
-                </button>
-              </>
-            )}
           </div>
         </div>
 
