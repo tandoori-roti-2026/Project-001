@@ -1511,6 +1511,8 @@ export const EditingScreen: React.FC<EditingScreenProps> = ({
               examinerId: currentUser?.username || 'exam-001',
               examinerName: currentUser?.name || 'Lead Examiner',
               timestamp: new Date().toISOString(),
+              updatedBy: currentUser?.email || currentUser?.username || 'examiner',
+              updatedAt: new Date().toISOString(),
             }
           : q.auditTrail,
       };
@@ -1521,6 +1523,8 @@ export const EditingScreen: React.FC<EditingScreenProps> = ({
       status: 'Reviewed',
       remarks: draftRemarks,
       questions: updatedQuestions,
+      updatedBy: currentUser?.email || currentUser?.username || 'examiner',
+      updatedAt: new Date().toISOString(),
     };
 
     onUpdatePaper(updatedPaper);
