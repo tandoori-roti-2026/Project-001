@@ -1327,7 +1327,7 @@ export const UploadingScreen: React.FC<UploadingScreenProps> = ({
   };
 
   return (
-    <div className="relative w-full min-h-screen bg-slate-50 text-slate-800 flex flex-col justify-between select-none">
+    <div className="relative w-full min-h-screen bg-slate-50 text-slate-800 flex flex-col justify-between">
       {/* ════════ TOP BANNER ════════ */}
       <header className="relative w-full z-20 shrink-0">
         <div
@@ -2754,7 +2754,7 @@ export const UploadingScreen: React.FC<UploadingScreenProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 select-none"
+            className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4"
           >
             <motion.div
               initial={{ scale: 0.94, opacity: 0, y: 20 }}

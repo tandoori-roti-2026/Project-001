@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { LogOut, User, CheckCircle2 } from 'lucide-react';
+import { LogOut, User, CheckCircle2, CloudUpload, Database } from 'lucide-react';
 import { ModuleItem, ModuleModal } from './ModuleModal';
 import { UserAccount } from '../data/authUsers';
 import { UserIdentityBadge } from './UserIdentityBadge';
@@ -18,6 +18,8 @@ interface MainMenuScreenProps {
   onOpenResultCards: () => void;
   onOpenStudentsData: () => void;
   onOpenAgent: () => void;
+  onImportLocalDataToFirestore?: () => Promise<void>;
+  isImportingLocalData?: boolean;
 }
 
 const MODULES_DATA: ModuleItem[] = [
@@ -74,6 +76,8 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({
   onOpenResultCards,
   onOpenStudentsData,
   onOpenAgent,
+  onImportLocalDataToFirestore,
+  isImportingLocalData,
 }) => {
   const [selectedModule, setSelectedModule] = useState<ModuleItem | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -199,9 +203,9 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({
 
       {/* ════════ MAIN CONTENT: 5 CARDS IN A ROW ════════ */}
       <main className="flex-1 flex flex-col justify-start items-center px-4 sm:px-8 py-6 sm:py-8 pb-24 md:pb-8 z-10 w-full max-w-[1580px] mx-auto">
-        {/* Live Count Bar (Horizontally centered, positioned in the gap right below header) */}
+        {/* Live Count Bar & Firestore Sync Status */}
         <div className="w-full flex justify-center mb-6 sm:mb-8 mt-4 md:mt-[50px]">
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 px-6 py-3 bg-blue-50/90 border border-blue-200/90 rounded-2xl shadow-xs font-rounded text-xs sm:text-sm text-[#0047AB]">
+          <div className="flex flex-col md:flex-row items-center justify-center gap-4 sm:gap-6 px-6 py-3 bg-blue-50/90 border border-blue-200/90 rounded-2xl shadow-xs font-rounded text-xs sm:text-sm text-[#0047AB]">
             {/* Left: Overall Checked / Total */}
             <div className="flex items-center gap-2">
               <span className="font-semibold text-slate-500">Papers checked:</span>
@@ -210,7 +214,7 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({
               </span>
             </div>
 
-            <div className="hidden sm:block w-px h-4 bg-blue-200" />
+            <div className="hidden md:block w-px h-4 bg-blue-200" />
 
             {/* Right: Earnings (Dev & Normal mode) or Assigned Papers (Examiner mode) */}
             <div className="flex flex-col items-center sm:items-start">
@@ -233,6 +237,29 @@ export const MainMenuScreen: React.FC<MainMenuScreenProps> = ({
                     20 PKR per checked paper · {rateError ? 'USD rate unavailable' : 'rate as of today'}
                   </span>
                 </div>
+              )}
+            </div>
+
+            <div className="hidden md:block w-px h-4 bg-blue-200" />
+
+            {/* Firestore Status Badge & One-Time Import Button */}
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <span className="inline-flex items-center gap-1.5 bg-emerald-100/90 text-emerald-800 text-[11px] font-bold px-2.5 py-1 rounded-full border border-emerald-300 shadow-2xs">
+                <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
+                Firestore Active
+              </span>
+
+              {onImportLocalDataToFirestore && (
+                <button
+                  type="button"
+                  onClick={() => onImportLocalDataToFirestore()}
+                  disabled={isImportingLocalData}
+                  className="flex items-center gap-1.5 bg-white hover:bg-blue-100/80 text-[#0047AB] border border-blue-300/80 shadow-2xs px-3 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer disabled:opacity-50 active:scale-95"
+                  title="One-time sync: Upload local browser data (localStorage/IndexedDB) into Firestore"
+                >
+                  <CloudUpload className="w-3.5 h-3.5" />
+                  <span>{isImportingLocalData ? 'Importing Data...' : 'Import Browser Data to Firestore'}</span>
+                </button>
               )}
             </div>
           </div>

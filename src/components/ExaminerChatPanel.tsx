@@ -197,7 +197,7 @@ export const ExaminerChatPanel: React.FC<ExaminerChatPanelProps> = ({ isOpen, on
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end select-none">
+        <div className="fixed inset-0 z-50 flex justify-end">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}

@@ -8,6 +8,8 @@ export interface ExaminerAuditEntry {
   examinerId: string;
   examinerName: string;
   timestamp: string;
+  updatedBy?: string;
+  updatedAt?: string;
 }
 
 export interface CorrectionLog {
@@ -142,6 +144,8 @@ export interface ExamPaper {
   questions: ExamQuestion[];
   pageImages?: string[];
   aiGradingDetails?: AIGradingDetails;
+  updatedBy?: string;
+  updatedAt?: string;
 }
 
 export const INITIAL_MOCK_STUDENTS: StudentRecord[] = [

@@ -43,13 +43,13 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     const acc = USER_ACCOUNTS[index];
     if (acc) {
       setUsername(acc.username);
-      setPassword(acc.password);
+      setPassword(acc.password || '');
       setErrorMessage('');
     }
   };
 
   return (
-    <div className="relative w-full h-screen bg-white text-slate-800 flex flex-col justify-between overflow-hidden select-none">
+    <div className="relative w-full h-screen bg-white text-slate-800 flex flex-col justify-between overflow-hidden">
       {/* ════════ TOP BANNER ════════ */}
       <header className="relative w-full z-20">
         <div

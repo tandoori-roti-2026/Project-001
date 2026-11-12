@@ -128,7 +128,7 @@ export const StudentsDataScreen: React.FC<StudentsDataScreenProps> = ({
   }, [papers, activeStudent]);
 
   return (
-    <div className="relative w-full min-h-screen bg-slate-50 text-slate-800 flex flex-col justify-between select-none">
+    <div className="relative w-full min-h-screen bg-slate-50 text-slate-800 flex flex-col justify-between">
       {/* ════════ TOP BANNER ════════ */}
       <header className="relative w-full z-20 shrink-0">
         <div

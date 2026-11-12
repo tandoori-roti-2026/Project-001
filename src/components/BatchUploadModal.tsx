@@ -391,7 +391,7 @@ export const BatchUploadModal: React.FC<BatchUploadModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 select-none overflow-y-auto">
+    <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
       <motion.div
         initial={{ scale: 0.94, opacity: 0, y: 20 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}

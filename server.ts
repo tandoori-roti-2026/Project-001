@@ -25,6 +25,10 @@ const GEMINI_MODELS = [
   'gemini-3.5-flash-lite',
   'gemini-3.1-flash-lite',
 ];
+const GRADING_GEMINI_MODELS = [
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
+];
 const PRIMARY_GEMINI_MODEL = GEMINI_MODELS[0];
 const FALLBACK_GEMINI_MODEL = GEMINI_MODELS[3];
 
@@ -306,6 +310,7 @@ interface VisionChainOptions {
   jsonMode?: boolean;
   operationName?: string;
   timeoutMs?: number;
+  geminiModels?: string[];
 }
 
 interface VisionChainResult {
@@ -323,6 +328,7 @@ async function executeVisionModelChain(options: VisionChainOptions): Promise<Vis
     jsonMode = false,
     operationName = 'Vision',
     timeoutMs = 60000,
+    geminiModels,
   } = options;
 
   const targetImages: string[] = images && images.length > 0
@@ -335,9 +341,9 @@ async function executeVisionModelChain(options: VisionChainOptions): Promise<Vis
     throw new Error(`[${operationName}] No image provided for vision call.`);
   }
 
-  // 1. Try Gemini models in order: 1) gemini-3.8-flash, 2) gemini-3.6-flash, 3) gemini-3.5-flash-lite, 4) gemini-3.1-flash-lite
+  const modelsToTry = geminiModels || GEMINI_MODELS;
   if (process.env.GEMINI_API_KEY) {
-    for (const model of GEMINI_MODELS) {
+    for (const model of modelsToTry) {
       if (isModelInCooldown(model)) {
         console.log(`[${operationName}] Skipping ${model} due to active 5-minute 503 cooldown.`);
         continue;
@@ -432,6 +438,7 @@ async function executeTextModelChain(options: {
   jsonMode?: boolean;
   operationName?: string;
   timeoutMs?: number;
+  geminiModels?: string[];
 }): Promise<{ text: string; parsed?: any; modelUsed: string }> {
   const {
     messages,
@@ -439,11 +446,12 @@ async function executeTextModelChain(options: {
     jsonMode = false,
     operationName = 'TextAI',
     timeoutMs = 60000,
+    geminiModels,
   } = options;
 
-  // 1. Try Gemini models in order: 1) gemini-3.8-flash, 2) gemini-3.6-flash, 3) gemini-3.5-flash-lite, 4) gemini-3.1-flash-lite
+  const modelsToTry = geminiModels || GEMINI_MODELS;
   if (process.env.GEMINI_API_KEY) {
-    for (const model of GEMINI_MODELS) {
+    for (const model of modelsToTry) {
       if (isModelInCooldown(model)) {
         console.log(`[${operationName}] Skipping ${model} due to active 5-minute 503 cooldown.`);
         continue;
@@ -1099,6 +1107,7 @@ Return strictly valid JSON:
         systemInstruction: STEP1_TRANSCRIPTION_SYSTEM_INSTRUCTION,
         jsonMode: true,
         operationName: `Step 1 Transcription Page ${i + 1}/${pageImages.length}`,
+        geminiModels: GRADING_GEMINI_MODELS,
       });
 
       lastModelUsed = result.modelUsed;
@@ -1328,6 +1337,7 @@ MANDATORY GRADING & OR-CHOICE RULES:
         systemInstruction: STEP2_SINGLE_QUESTION_SYSTEM_INSTRUCTION,
         jsonMode: true,
         operationName: `Step 2 Grading Q${sq.questionNumber}${sq.partLabel || ''} (Text Only)`,
+        geminiModels: GRADING_GEMINI_MODELS,
       });
       return { parsed: textRes.parsed, modelUsed: textRes.modelUsed };
     }
@@ -1338,6 +1348,7 @@ MANDATORY GRADING & OR-CHOICE RULES:
       systemInstruction: STEP2_SINGLE_QUESTION_SYSTEM_INSTRUCTION,
       jsonMode: true,
       operationName: `Step 2 Grading Q${sq.questionNumber}${sq.partLabel || ''} (${idx + 1}/${schemeQuestions.length})`,
+      geminiModels: GRADING_GEMINI_MODELS,
     });
     return { parsed: visionRes.parsed, modelUsed: visionRes.modelUsed };
   };

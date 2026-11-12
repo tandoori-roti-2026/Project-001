@@ -1,0 +1,124 @@
+{
+  "entities": {
+    "Student": {
+      "title": "StudentRecord",
+      "description": "Master student candidate record aligned with FBISE standards",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "rollNumber": { "type": "string" },
+        "registrationId": { "type": "string" },
+        "fullName": { "type": "string" },
+        "fatherName": { "type": "string" },
+        "gender": { "type": "string" },
+        "examGroup": { "type": "string" },
+        "institutionName": { "type": "string" },
+        "academicYear": { "type": "string" },
+        "enrollmentStatus": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "extractedAt": { "type": "string" },
+        "contactNumber": { "type": "string" },
+        "dateOfBirth": { "type": "string" }
+      },
+      "required": ["id", "rollNumber", "fullName"]
+    },
+    "ExamPaper": {
+      "title": "ExamPaper",
+      "description": "Graded examination paper script with detailed question marks and OCR transcriptions (page images stored in subcollection)",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "paperCode": { "type": "string" },
+        "subject": { "type": "string" },
+        "totalMarks": { "type": "number" },
+        "obtMarks": { "type": "number" },
+        "grade": { "type": "string" },
+        "status": { "type": "string" },
+        "studentId": { "type": "string" },
+        "studentName": { "type": "string" },
+        "rollNumber": { "type": "string" },
+        "examGroup": { "type": "string" },
+        "institution": { "type": "string" },
+        "academicYear": { "type": "string" },
+        "markingSchemeId": { "type": "string" },
+        "flaggedCount": { "type": "number" },
+        "aiConfidence": { "type": "string" },
+        "processedAt": { "type": "string" },
+        "verifiedAt": { "type": "string" },
+        "verifiedBy": { "type": "string" }
+      },
+      "required": ["id", "subject", "studentId"]
+    },
+    "PaperPageImage": {
+      "title": "PaperPageImage",
+      "description": "Subcollection document holding an individual page scan for a paper script",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "index": { "type": "number" },
+        "imageUrl": { "type": "string" }
+      },
+      "required": ["id", "index", "imageUrl"]
+    },
+    "MarkingScheme": {
+      "title": "MarkingScheme",
+      "description": "Official rubric criteria and answer keys for paper evaluation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "subject": { "type": "string" },
+        "classLevel": { "type": "string" },
+        "totalMarks": { "type": "number" },
+        "passingMarks": { "type": "number" },
+        "version": { "type": "string" },
+        "isDefault": { "type": "boolean" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["id", "title", "subject"]
+    },
+    "CorrectionLog": {
+      "title": "CorrectionLog",
+      "description": "Audit trail log of examiner mark corrections and reason codes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "paperId": { "type": "string" },
+        "questionId": { "type": "string" },
+        "questionNumber": { "type": "number" },
+        "partLabel": { "type": "string" },
+        "originalAIMark": { "type": "number" },
+        "revisedExaminerMark": { "type": "number" },
+        "reasonCode": { "type": "string" },
+        "customRemark": { "type": "string" },
+        "examinerId": { "type": "string" },
+        "examinerName": { "type": "string" },
+        "timestamp": { "type": "string" }
+      },
+      "required": ["id", "paperId", "questionId"]
+    }
+  },
+  "firestore": {
+    "/students/{studentId}": {
+      "schema": "#/entities/Student",
+      "description": "Collection of student candidates"
+    },
+    "/papers/{paperId}": {
+      "schema": "#/entities/ExamPaper",
+      "description": "Collection of exam papers and grading records"
+    },
+    "/papers/{paperId}/pages/{pageId}": {
+      "schema": "#/entities/PaperPageImage",
+      "description": "Subcollection of answer script page scans for a paper"
+    },
+    "/markingSchemes/{schemeId}": {
+      "schema": "#/entities/MarkingScheme",
+      "description": "Collection of official marking schemes"
+    },
+    "/correctionLogs/{logId}": {
+      "schema": "#/entities/CorrectionLog",
+      "description": "Collection of examiner audit logs"
+    }
+  }
+}

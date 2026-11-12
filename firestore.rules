@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128;
+    }
+
+    // Master student candidate registry
+    match /students/{studentId} {
+      allow read, write: if isValidId(studentId);
+    }
+
+    // Exam papers collection
+    match /papers/{paperId} {
+      allow read, write: if isValidId(paperId);
+
+      // Subcollection for page images
+      match /pages/{pageId} {
+        allow read, write: if isValidId(pageId);
+      }
+    }
+
+    // Marking schemes collection
+    match /markingSchemes/{schemeId} {
+      allow read, write: if isValidId(schemeId);
+    }
+
+    // Audit trail and correction logs collection
+    match /correctionLogs/{logId} {
+      allow read, write: if isValidId(logId);
+    }
+  }
+}

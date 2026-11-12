@@ -45,6 +45,22 @@ import {
   isNormal,
 } from './data/authUsers';
 
+import {
+  subscribeToStudents,
+  subscribeToPapers,
+  subscribeToMarkingSchemes,
+  subscribeToCorrectionLogs,
+  saveStudentFirestore,
+  deleteStudentFirestore,
+  savePaperFirestore,
+  deletePaperFirestore,
+  saveMarkingSchemeFirestore,
+  deleteMarkingSchemeFirestore,
+  saveCorrectionLogFirestore,
+  seedInitialStudents,
+  importLocalBrowserDataToFirestore,
+} from './utils/firestoreStorage';
+
 export type ScreenType =
   | 'landing'
   | 'login'
@@ -84,73 +100,40 @@ export default function App() {
     return USER_ACCOUNTS[0];
   });
 
-  // Unified shared master database (Persisted in IndexedDB + LocalStorage)
+  // Unified shared master database (Persisted in Firestore + local IndexedDB fallback)
   const [students, setStudents] = useState<StudentRecord[]>(() => paperStorage.loadInitialStudentsSync());
   const [papers, setPapers] = useState<ExamPaper[]>(() => paperStorage.loadInitialPapersSync());
+  const [markingSchemes, setMarkingSchemes] = useState<MarkingScheme[]>(() => INITIAL_MOCK_MARKING_SCHEMES);
+  const [correctionLogs, setCorrectionLogs] = useState<CorrectionLog[]>([]);
 
-  // Asynchronously hydrate full records (including high-resolution answer page images) from IndexedDB
+  // ════════ FIRESTORE SHARED REAL-TIME DATABASE SUBSCRIPTIONS ════════
   useEffect(() => {
-    let isMounted = true;
-    paperStorage.loadAllPapers().then((dbPapers) => {
-      if (isMounted && Array.isArray(dbPapers) && dbPapers.length > 0) {
-        setPapers((current) => {
-          const map = new Map<string, ExamPaper>();
-          // Priority to IndexedDB full data
-          dbPapers.forEach((p) => map.set(p.id, p));
-          current.forEach((p) => {
-            if (!map.has(p.id)) {
-              map.set(p.id, p);
-            }
-          });
-          return Array.from(map.values());
-        });
+    const unsubStudents = subscribeToStudents((data) => {
+      if (data) setStudents(data);
+    });
+
+    const unsubPapers = subscribeToPapers((data) => {
+      if (data) setPapers(data);
+    });
+
+    const unsubSchemes = subscribeToMarkingSchemes((data) => {
+      if (data) {
+        setMarkingSchemes(data.map(ensureDescriptiveSchemeQuestions));
       }
     });
 
-    paperStorage.loadAllStudents().then((dbStudents) => {
-      if (isMounted && Array.isArray(dbStudents) && dbStudents.length > 0) {
-        setStudents((current) => {
-          const map = new Map<string, StudentRecord>();
-          dbStudents.forEach((s) => map.set(s.id, s));
-          current.forEach((s) => {
-            if (!map.has(s.id)) {
-              map.set(s.id, s);
-            }
-          });
-          return Array.from(map.values());
-        });
-      }
+    const unsubLogs = subscribeToCorrectionLogs((data) => {
+      if (data) setCorrectionLogs(data);
     });
 
     return () => {
-      isMounted = false;
+      unsubStudents();
+      unsubPapers();
+      unsubSchemes();
+      unsubLogs();
     };
   }, []);
-  const [markingSchemes, setMarkingSchemes] = useState<MarkingScheme[]>(() => {
-    try {
-      const saved = localStorage.getItem('project001_marking_schemes_v2');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed)) {
-          const cleaned = parsed.filter(
-            (s) =>
-              s.id !== 'scheme-physics-adv-2026' &&
-              s.id !== 'scheme-maths-pure-2026' &&
-              s.id !== 'scheme-physics-2026' &&
-              s.id !== 'scheme-math-2026'
-          );
-          const mapped = cleaned.map(ensureDescriptiveSchemeQuestions);
-          if (cleaned.length !== parsed.length) {
-            try {
-              localStorage.setItem('project001_marking_schemes_v2', JSON.stringify(mapped));
-            } catch (_) {}
-          }
-          if (mapped.length > 0) return mapped;
-        }
-      }
-    } catch (_) {}
-    return INITIAL_MOCK_MARKING_SCHEMES;
-  });
+
   const [activeResultCardStudentId, setActiveResultCardStudentId] = useState<string | null>(null);
   const [activeEditingPaperId, setActiveEditingPaperId] = useState<string | null>(null);
   const [activeEditingTab, setActiveEditingTab] = useState<'grading' | 'schemes'>('grading');
@@ -158,11 +141,32 @@ export default function App() {
   const [recentUploads, setRecentUploads] = useState<RecentUploadLog[]>([]);
   const [backgroundJobs, setBackgroundJobs] = useState<BackgroundGradingJob[]>([]);
   const [studentImportJobs, setStudentImportJobs] = useState<StudentImportBatchJob[]>([]);
+  const [isImportingLocalData, setIsImportingLocalData] = useState(false);
   const [errorAlert, setErrorAlert] = useState<{
     isOpen: boolean;
     title: string;
     message: string;
   } | null>(null);
+
+  const handleImportLocalDataToFirestore = async () => {
+    setIsImportingLocalData(true);
+    try {
+      const res = await importLocalBrowserDataToFirestore();
+      setErrorAlert({
+        isOpen: true,
+        title: 'Firestore Sync Success',
+        message: `Successfully imported local browser data into Firestore! (${res.studentsCount} students, ${res.papersCount} papers, ${res.schemesCount} marking schemes, ${res.logsCount} correction logs)`,
+      });
+    } catch (err: any) {
+      setErrorAlert({
+        isOpen: true,
+        title: 'Firestore Import Exception',
+        message: err?.message || 'Error occurred while syncing browser data to Firestore.',
+      });
+    } finally {
+      setIsImportingLocalData(false);
+    }
+  };
 
   const handleBatchImportStudents = (
     job: StudentImportBatchJob,
@@ -178,24 +182,15 @@ export default function App() {
         );
       },
       onStudentsImported: (importedStudents) => {
+        importedStudents.forEach((s) => saveStudentFirestore(s));
         setStudents((prev) => {
           if (replaceExisting) {
-            // Overwrite and replace mock records so only uploaded candidates appear (confirmed in modal)
             const map = new Map<string, StudentRecord>();
             importedStudents.forEach((s) => map.set(normalizeRoll(s.rollNumber), s));
             const updatedList = Array.from(map.values());
-            try {
-              localStorage.setItem('project001_students', JSON.stringify(updatedList));
-            } catch (_) {}
             return updatedList;
           }
 
-          // MERGE PATH (default, checkbox off):
-          // a) Match by normalized roll number.
-          // b) If roll exists -> UPDATE that record (keep same id, merge non-empty fields from OCR)
-          // c) If roll is new -> APPEND.
-          // d) NEVER remove a student whose roll is not in this batch.
-          // e) Do NOT filter/delete legacy mock students during normal import.
           const map = new Map<string, StudentRecord>();
           prev.forEach((s) => map.set(normalizeRoll(s.rollNumber), s));
           importedStudents.forEach((s) => {
@@ -213,35 +208,20 @@ export default function App() {
             );
           });
           const updatedList = Array.from(map.values());
-          try {
-            localStorage.setItem('project001_students', JSON.stringify(updatedList));
-          } catch (_) {}
           return updatedList;
         });
       },
     });
   };
+
   const handleClearAllStudents = () => {
+    students.forEach((s) => deleteStudentFirestore(s.id));
     setStudents([]);
-    try {
-      localStorage.setItem('project001_students', JSON.stringify([]));
-    } catch (_) {}
   };
 
   const handleResetStudents = () => {
-    setStudents(INITIAL_MOCK_STUDENTS);
-    try {
-      localStorage.setItem('project001_students', JSON.stringify(INITIAL_MOCK_STUDENTS));
-    } catch (_) {}
+    seedInitialStudents();
   };
-
-  const [correctionLogs, setCorrectionLogs] = useState<CorrectionLog[]>(() => {
-    try {
-      const saved = localStorage.getItem('project001_correction_logs');
-      if (saved) return JSON.parse(saved);
-    } catch (_) {}
-    return [];
-  });
 
   const handleSaveMarkingScheme = (newScheme: MarkingScheme) => {
     const targetSubject = newScheme.subject.trim();
@@ -258,12 +238,7 @@ export default function App() {
       shift: rawShift.toLowerCase().includes('evening') ? 'evening' : 'morning',
     });
 
-    // Save under normalized exact key in localStorage
-    try {
-      localStorage.setItem(`project001_scheme_${normalizedKey}`, JSON.stringify(normalizedScheme));
-      localStorage.setItem(normalizedKey, JSON.stringify(normalizedScheme));
-      localStorage.setItem(`scheme_${normalizedKey}`, JSON.stringify(normalizedScheme));
-    } catch (_) {}
+    saveMarkingSchemeFirestore(normalizedScheme);
 
     setMarkingSchemes((prev) => {
       const filtered = prev.filter((s) => {
@@ -277,9 +252,6 @@ export default function App() {
       });
 
       const updated = [normalizedScheme, ...filtered].map(ensureDescriptiveSchemeQuestions);
-      try {
-        localStorage.setItem('project001_marking_schemes_v2', JSON.stringify(updated));
-      } catch (_) {}
       return updated;
     });
   };
@@ -309,6 +281,8 @@ export default function App() {
       }
     }
 
+    savePaperFirestore(newOrUpdatedPaper);
+
     setPapers((prev) => {
       const idx = prev.findIndex((p) => p.id === newOrUpdatedPaper.id);
       let updated: ExamPaper[];
@@ -318,7 +292,6 @@ export default function App() {
       } else {
         updated = [newOrUpdatedPaper, ...prev];
       }
-      paperStorage.saveAllPapers(updated);
       return updated;
     });
 
@@ -340,7 +313,7 @@ export default function App() {
         if (existing) {
           if (studentName && (existing.fullName === 'Auto-Detected Candidate' || existing.fullName === 'Candidate')) {
             const updated = prev.map((s) => (s.id === existing.id ? { ...s, fullName: studentName } : s));
-            paperStorage.saveAllStudents(updated);
+            saveStudentFirestore({ ...existing, fullName: studentName });
             return updated;
           }
           return prev;
@@ -361,8 +334,8 @@ export default function App() {
           enrollmentStatus: 'Active',
           enrolledSubjects: [newOrUpdatedPaper.subject || 'Physics (Advanced)'],
         };
+        saveStudentFirestore(newStd);
         const updated = [newStd, ...prev];
-        paperStorage.saveAllStudents(updated);
         return updated;
       });
     }
@@ -382,12 +355,12 @@ export default function App() {
         handleSaveOrUpdatePaper(newPaper);
       },
       onStudentCreated: (newStudent) => {
+        saveStudentFirestore(newStudent);
         setStudents((prev) => {
           if (prev.some((s) => s.id === newStudent.id || s.rollNumber === newStudent.rollNumber)) {
             return prev;
           }
           const updated = [newStudent, ...prev];
-          paperStorage.saveAllStudents(updated);
           return updated;
         });
       },
@@ -398,65 +371,24 @@ export default function App() {
   };
 
   const handleAddCorrectionLog = (newLog: CorrectionLog) => {
-    setCorrectionLogs((prev) => {
-      const updated = [newLog, ...prev];
-      try {
-        localStorage.setItem('project001_correction_logs', JSON.stringify(updated));
-      } catch (_) {}
-      return updated;
-    });
+    saveCorrectionLogFirestore(newLog);
+    setCorrectionLogs((prev) => [newLog, ...prev]);
   };
 
   const handleSaveMarkingSchemes = (updatedSchemes: MarkingScheme[]) => {
     const processed = updatedSchemes.map(ensureDescriptiveSchemeQuestions);
     setMarkingSchemes(processed);
-    try {
-      localStorage.setItem('project001_marking_schemes_v2', JSON.stringify(processed));
-      localStorage.setItem('project001_marking_schemes', JSON.stringify(processed));
-    } catch (_) {}
+    processed.forEach((sch) => saveMarkingSchemeFirestore(sch));
   };
 
   const handleDeleteMarkingScheme = (schemeId: string) => {
-    setMarkingSchemes((prev) => {
-      const target = prev.find((s) => s.id === schemeId || (s as any).key === schemeId);
-      const updated = prev.filter((s) => s.id !== schemeId && (s as any).key !== schemeId);
-      try {
-        if (updated.length === 0) {
-          localStorage.setItem('project001_marking_schemes_v2', JSON.stringify([]));
-          localStorage.setItem('project001_marking_schemes', JSON.stringify([]));
-        } else {
-          localStorage.setItem('project001_marking_schemes_v2', JSON.stringify(updated));
-          localStorage.setItem('project001_marking_schemes', JSON.stringify(updated));
-          if (target) {
-            const sSub = target.subject.trim();
-            const sShift = (target.shift || 'morning').trim().toLowerCase().includes('eve')
-              ? 'Evening (Group 2)'
-              : 'Morning (Group 1)';
-            const normKey = `${sSub}_${sShift}`;
-            localStorage.removeItem(normKey);
-            localStorage.removeItem(`scheme_${normKey}`);
-            localStorage.removeItem(`project001_scheme_${normKey}`);
-            if (target.id) {
-              localStorage.removeItem(target.id);
-              localStorage.removeItem(`scheme_${target.id}`);
-              localStorage.removeItem(`project001_scheme_${target.id}`);
-            }
-          }
-          localStorage.removeItem(schemeId);
-          localStorage.removeItem(`scheme_${schemeId}`);
-          localStorage.removeItem(`project001_scheme_${schemeId}`);
-        }
-      } catch (_) {}
-      return updated;
-    });
+    deleteMarkingSchemeFirestore(schemeId);
+    setMarkingSchemes((prev) => prev.filter((s) => s.id !== schemeId && (s as any).key !== schemeId));
   };
 
   const handleDeleteAllMarkingSchemes = () => {
+    markingSchemes.forEach((s) => deleteMarkingSchemeFirestore(s.id));
     setMarkingSchemes([]);
-    try {
-      localStorage.setItem('project001_marking_schemes_v2', JSON.stringify([]));
-      localStorage.setItem('project001_marking_schemes', JSON.stringify([]));
-    } catch (_) {}
   };
 
   const handleLoginSuccess = (user: UserAccount) => {
@@ -482,22 +414,21 @@ export default function App() {
 
   // Delete paper entry from storage & state (maintains student profile)
   const handleDeletePaper = (paperIdOrStudentId: string) => {
-    setPapers((prev) => {
-      const updated = prev.filter(
+    deletePaperFirestore(paperIdOrStudentId);
+    setPapers((prev) =>
+      prev.filter(
         (p) =>
           p.id !== paperIdOrStudentId &&
           p.studentId !== paperIdOrStudentId &&
           `new-${p.studentId}` !== paperIdOrStudentId &&
           `paper-${p.studentId}` !== paperIdOrStudentId
-      );
-      paperStorage.saveAllPapers(updated);
-      return updated;
-    });
-    paperStorage.deletePaper(paperIdOrStudentId);
+      )
+    );
   };
 
   // Add new student from Students Data module
   const handleAddStudent = (newStudent: StudentRecord) => {
+    saveStudentFirestore(newStudent);
     setStudents((prev) => [newStudent, ...prev]);
 
     // Automatically create a companion paper record so it's immediately gradeable in Editing
@@ -548,11 +479,13 @@ export default function App() {
       ],
     };
 
+    savePaperFirestore(newPaper);
     setPapers((prev) => [newPaper, ...prev]);
   };
 
   // Update student profile from Students Data module
   const handleUpdateStudent = (updatedStudent: StudentRecord) => {
+    saveStudentFirestore(updatedStudent);
     setStudents((prev) =>
       prev.map((s) => (s.id === updatedStudent.id ? updatedStudent : s))
     );
@@ -560,6 +493,8 @@ export default function App() {
 
   // Delete student and any associated paper
   const handleDeleteStudent = (studentId: string) => {
+    deleteStudentFirestore(studentId);
+    papers.filter((p) => p.studentId === studentId).forEach((p) => deletePaperFirestore(p.id));
     setStudents((prev) => prev.filter((s) => s.id !== studentId));
     setPapers((prev) => prev.filter((p) => p.studentId !== studentId));
   };
@@ -644,6 +579,8 @@ export default function App() {
                 }}
                 onOpenStudentsData={() => goToScreen('students-data', 'forward')}
                 onOpenAgent={() => setIsExaminerChatOpen(true)}
+                onImportLocalDataToFirestore={handleImportLocalDataToFirestore}
+                isImportingLocalData={isImportingLocalData}
               />
             </motion.div>
           )}
